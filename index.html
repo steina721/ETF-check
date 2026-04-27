@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETF Zukunfts-Scanner</title>
+  <meta name="description" content="GitHub Pages ETF-Website mit Ranking, Risiko-/Rendite-Schätzung, Filter und Chart-Widgets." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111831;
+      --panel2: #171f3b;
+      --text: #edf2ff;
+      --muted: #aab5d6;
+      --line: rgba(255,255,255,.10);
+      --accent: #6ea8fe;
+      --accent2: #7cf0c7;
+      --danger: #ffb86b;
+      --shadow: 0 20px 60px rgba(0,0,0,.25);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1100px 700px at 10% 0%, rgba(110,168,254,.18), transparent 60%),
+        radial-gradient(900px 600px at 100% 10%, rgba(124,240,199,.12), transparent 50%),
+        var(--bg);
+      color: var(--text);
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 18px 60px; }
+    .hero {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: linear-gradient(180deg, rgba(17,24,49,.92), rgba(17,24,49,.74));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+    }
+    h1 { margin: 16px 0 12px; font-size: clamp(30px, 4vw, 52px); line-height: 1.03; }
+    .sub {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+      margin: 0 0 18px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+    .stat {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+    }
+    .stat .k { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .stat .v { font-weight: 700; font-size: 20px; }
+    .controls {
+      display: grid;
+      grid-template-columns: 1.5fr .8fr .8fr;
+      gap: 12px;
+      margin: 18px 0 22px;
+    }
+    .control {
+      background: rgba(17,24,49,.72);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .control label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .control input, .control select {
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+    }
+    .control input::placeholder { color: #7f89ab; }
+    .chart-panel {
+      margin: 22px 0;
+      background: rgba(17,24,49,.72);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .chart-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .chart-top h2 { margin: 0; font-size: 20px; }
+    .chart-top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(23,31,59,.92), rgba(17,24,49,.92));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .ticker-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+    .ticker {
+      font-weight: 800;
+      letter-spacing: .03em;
+      color: white;
+      background: rgba(110,168,254,.15);
+      border: 1px solid rgba(110,168,254,.25);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+    .badge {
+      font-size: 12px;
+      color: #cdd7ff;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 999px;
+      padding: 5px 9px;
+    }
+    .card h3 { margin: 4px 0 4px; font-size: 20px; line-height: 1.15; }
+    .coverage { margin: 0; color: var(--muted); line-height: 1.55; font-size: 14px; }
+    .scorebox {
+      min-width: 92px;
+      text-align: center;
+      padding: 12px 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+    }
+    .score { font-size: 28px; font-weight: 800; }
+    .scorelabel { font-size: 11px; color: var(--muted); }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+    .metrics > div {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .metrics strong { font-size: 15px; }
+    .why, .source-note {
+      margin: 0;
+      line-height: 1.6;
+      color: #dce4ff;
+      font-size: 14px;
+    }
+    .source-note { color: var(--muted); font-size: 12.5px; }
+    .chart-wrap {
+      padding: 14px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 18px;
+    }
+    .chart-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    .tradingview-widget-container { min-height: 130px; }
+    .tradingview-widget-container__widget { min-height: 120px; }
+    .footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .pill {
+      display:inline-flex; align-items:center; gap:8px;
+      border-radius:999px; border:1px solid var(--line);
+      padding:8px 12px; background: rgba(255,255,255,.03); color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 1000px) {
+      .hero-grid, .controls, .grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .hero-grid, .controls, .grid, .metrics { grid-template-columns: 1fr; }
+      .card-head { flex-direction: column; }
+      .scorebox { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">GitHub Pages • 100% statische HTML-Datei • Charts per TradingView</span>
+      <h1>ETF Zukunfts-Scanner</h1>
+      <p class="sub">
+        Eine kompakte, GitHub-taugliche Website mit einer kuratierten ETF-Liste, grober Risiko-/Rendite-Schätzung,
+        Filterfunktionen und Trend-Charts. Die Reihenfolge ist bewusst eine Heuristik: hohe Chancen stehen vor stabileren Core-Bausteinen.
+        <br><br>
+        <strong>Wichtig:</strong> Die Renditeangaben sind Schätzungen, keine Zusagen. Das ist kein Anlageberater-Ersatz.
+      </p>
+
+      <div class="hero-grid">
+        <div class="stat"><div class="k">ETFs im Set</div><div class="v">20</div></div>
+        <div class="stat"><div class="k">Aggressivster ETF</div><div class="v">SMH</div></div>
+        <div class="stat"><div class="k">Breitester Core</div><div class="v">VT / VOO</div></div>
+        <div class="stat"><div class="k">Ansatz</div><div class="v">Langfristig</div></div>
+      </div>
+    </section>
+
+    <div class="controls">
+      <div class="control">
+        <label for="search">Suche</label>
+        <input id="search" type="search" placeholder="ETF, Bereich, Unternehmen..." />
+      </div>
+      <div class="control">
+        <label for="category">Kategorie</label>
+        <select id="category">
+          <option value="Alle">Alle</option>
+<option value="Clean Energy">Clean Energy</option>
+<option value="Communication Services">Communication Services</option>
+<option value="Core USA">Core USA</option>
+<option value="Cybersecurity">Cybersecurity</option>
+<option value="Developed ex-US">Developed ex-US</option>
+<option value="Dividend / Quality">Dividend / Quality</option>
+<option value="Emerging Markets">Emerging Markets</option>
+<option value="Energie">Energie</option>
+<option value="Finanzen">Finanzen</option>
+<option value="Global Core">Global Core</option>
+<option value="Halbleiter">Halbleiter</option>
+<option value="Healthcare">Healthcare</option>
+<option value="Industrials">Industrials</option>
+<option value="Quality / Moat">Quality / Moat</option>
+<option value="Quality Factor">Quality Factor</option>
+<option value="Real Estate">Real Estate</option>
+<option value="Technologie">Technologie</option>
+<option value="US Growth">US Growth</option>
+<option value="US Growth / Mega Caps">US Growth / Mega Caps</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="sort">Sortierung</label>
+        <select id="sort">
+          <option value="score-desc">Risiko/Rendite: hoch → niedrig</option>
+          <option value="risk-desc">Risiko: hoch → niedrig</option>
+          <option value="return-desc">Erwartete Rendite: hoch → niedrig</option>
+          <option value="ticker-asc">Ticker A → Z</option>
+        </select>
+      </div>
+    </div>
+
+    <section class="chart-panel">
+      <div class="chart-top">
+        <div>
+          <h2>Risiko vs. erwartete Rendite</h2>
+          <p>Die Punkte nutzen die Schätzwerte aus der Liste oben. Höher = riskanter und renditestärker.</p>
+        </div>
+        <span class="pill">Heuristische Einstufung</span>
+      </div>
+      <canvas id="scatterChart" height="120"></canvas>
+    </section>
+
+    <section class="grid" id="grid">
+      
+    <article class="card" data-name="smh vaneck semiconductor etf halbleiter chiphersteller, design- und equipment-unternehmen" data-category="Halbleiter" data-ticker="SMH">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">SMH</span>
+            <span class="badge">Halbleiter</span>
+          </div>
+          <h3>VanEck Semiconductor ETF</h3>
+          <p class="coverage">Chiphersteller, Design- und Equipment-Unternehmen</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">14.25</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>12–16 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>9.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,35 %</strong></div>
+      </div>
+
+      <p class="why">Stark auf die Halbleiter-Wertschöpfung fokussiert; profitiert von KI-, Rechenzentrums- und Hardware-Nachfrage, ist aber sehr zyklisch.</p>
+      <p class="source-note">Offizielle Produktseite nennt Halbleiter-Fokus und TER 0,35 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:SMH",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="icln ishares global clean energy etf clean energy erneuerbare energien, netze, solar- und clean-tech" data-category="Clean Energy" data-ticker="ICLN">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">ICLN</span>
+            <span class="badge">Clean Energy</span>
+          </div>
+          <h3>iShares Global Clean Energy ETF</h3>
+          <p class="coverage">Erneuerbare Energien, Netze, Solar- und Clean-Tech</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">12.60</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>11–18 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>9.0 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,39 %</strong></div>
+      </div>
+
+      <p class="why">Hebt auf die Energiewende ab; großes Potenzial, aber hohe Schwankungen durch Politik, Zinsen und Projektzyklen.</p>
+      <p class="source-note">iShares nennt Clean-Energy-Exposure, 100 Holdings und TER 0,39 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NASDAQ:ICLN",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="cibr first trust nasdaq cybersecurity etf cybersecurity cyberabwehr, identität, sicherheit, software" data-category="Cybersecurity" data-ticker="CIBR">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">CIBR</span>
+            <span class="badge">Cybersecurity</span>
+          </div>
+          <h3>First Trust Nasdaq Cybersecurity ETF</h3>
+          <p class="coverage">Cyberabwehr, Identität, Sicherheit, Software</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">11.05</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>10–15 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>8.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,60 %</strong></div>
+      </div>
+
+      <p class="why">Dauertrend durch steigenden Sicherheitsbedarf; oft wachstumsstark, aber mit höherer Bewertung und Tech-Abhängigkeit.</p>
+      <p class="source-note">Issuer beschreibt den Nasdaq CTA Cybersecurity Index als Basis des Fonds.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NASDAQ:CIBR",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="vgt vanguard information technology etf technologie us-technologie, software, hardware, halbleiter" data-category="Technologie" data-ticker="VGT">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">VGT</span>
+            <span class="badge">Technologie</span>
+          </div>
+          <h3>Vanguard Information Technology ETF</h3>
+          <p class="coverage">US-Technologie, Software, Hardware, Halbleiter</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">10.63</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>10–14 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>8.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,09 %</strong></div>
+      </div>
+
+      <p class="why">Breites Tech-Paket mit sehr niedrigen Kosten; stark von Mega-Cap-Tech und Halbleitern geprägt.</p>
+      <p class="source-note">Vanguard weist Technologie-Fokus und sehr niedrige Kosten aus.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:VGT",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="qqqm invesco nasdaq 100 etf us growth / mega caps 100 große nicht-finanzwerte der nasdaq-100" data-category="US Growth / Mega Caps" data-ticker="QQQM">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">QQQM</span>
+            <span class="badge">US Growth / Mega Caps</span>
+          </div>
+          <h3>Invesco NASDAQ 100 ETF</h3>
+          <p class="coverage">100 große Nicht-Finanzwerte der Nasdaq-100</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">9.44</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>9–13 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>8.0 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,15 %</strong></div>
+      </div>
+
+      <p class="why">Hohe Wachstums- und Tech-Lastigkeit; starke Gewinner, aber Konzentrationsrisiko bei wenigen Schwergewichten.</p>
+      <p class="source-note">Invesco nennt 0,15 % Kosten und 102 Holdings im Fact Sheet.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NASDAQ:QQQM",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="iyw ishares u.s. technology etf technologie us-technologie mit russell-1000-tech-benchmark" data-category="Technologie" data-ticker="IYW">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">IYW</span>
+            <span class="badge">Technologie</span>
+          </div>
+          <h3>iShares U.S. Technology ETF</h3>
+          <p class="coverage">US-Technologie mit Russell-1000-Tech-Benchmark</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">8.42</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>8–12 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.8 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,38 %</strong></div>
+      </div>
+
+      <p class="why">Tech-Exposure breiter als nur Halbleiter, aber mit klarer US-Technologie-Schieflage.</p>
+      <p class="source-note">iShares Fact Sheet nennt Russell 1000 Technology RIC 22.5/45 Capped Index und TER 0,38 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:IYW",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="vug vanguard growth etf us growth us large-cap growth" data-category="US Growth" data-ticker="VUG">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">VUG</span>
+            <span class="badge">US Growth</span>
+          </div>
+          <h3>Vanguard Growth ETF</h3>
+          <p class="coverage">US Large-Cap Growth</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">8.25</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>8–12 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,03 %</strong></div>
+      </div>
+
+      <p class="why">Sehr günstiger Growth-Baustein mit Schwerpunkt auf profitablen Wachstumsunternehmen.</p>
+      <p class="source-note">Vanguard zeigt einen sehr niedrigen Expense Ratio von 0,03 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:VUG",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="vwo vanguard ftse emerging markets etf emerging markets schwellenländer-aktien" data-category="Emerging Markets" data-ticker="VWO">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">VWO</span>
+            <span class="badge">Emerging Markets</span>
+          </div>
+          <h3>Vanguard FTSE Emerging Markets ETF</h3>
+          <p class="coverage">Schwellenländer-Aktien</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">7.60</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>8–12 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.6 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Langfristig attraktive Wachstumsregionen, aber politisch und währungsseitig deutlich schwankungsanfälliger.</p>
+      <p class="source-note">Vanguard ordnet den Fonds den Aktien aus Schwellenländern zu.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:VWO",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xlc communication services select sector spdr communication services plattformen, medien, telekom" data-category="Communication Services" data-ticker="XLC">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLC</span>
+            <span class="badge">Communication Services</span>
+          </div>
+          <h3>Communication Services Select Sector SPDR</h3>
+          <p class="coverage">Plattformen, Medien, Telekom</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">7.25</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>8–12 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.4 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Enthält große Plattform- und Medienwerte; stark von wenigen Mega Caps abhängig.</p>
+      <p class="source-note">SSGA weist 0,08 % Kosten und die Sektoraufteilung aus.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLC",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="moat vaneck morningstar wide moat etf quality / moat unternehmen mit nachhaltigen wettbewerbsvorteilen" data-category="Quality / Moat" data-ticker="MOAT">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">MOAT</span>
+            <span class="badge">Quality / Moat</span>
+          </div>
+          <h3>VanEck Morningstar Wide Moat ETF</h3>
+          <p class="coverage">Unternehmen mit nachhaltigen Wettbewerbsvorteilen</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">7.00</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>8–11 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.0 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,47 %</strong></div>
+      </div>
+
+      <p class="why">Fokus auf Firmen mit Preissetzungsmacht, Markenstärke oder Netzwerkeffekten; defensiver als reines Tech.</p>
+      <p class="source-note">VanEck beschreibt den Fonds als US-Aktien mit langfristigen Wettbewerbsvorteilen.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:MOAT",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xle energy select sector spdr energie öl, gas, midstream, ausrüstung" data-category="Energie" data-ticker="XLE">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLE</span>
+            <span class="badge">Energie</span>
+          </div>
+          <h3>Energy Select Sector SPDR</h3>
+          <p class="coverage">Öl, Gas, Midstream, Ausrüstung</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">6.19</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>7.2 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Cashflow-starke Energieunternehmen; zyklisch, aber oft robust bei höheren Rohstoffpreisen.</p>
+      <p class="source-note">SSGA nennt Exxon, Chevron und weitere Energiewerte als Top-Holdings.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLE",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xlf financial select sector spdr finanzen banken, zahlungsdienstleister, finanzkonglomerate" data-category="Finanzen" data-ticker="XLF">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLF</span>
+            <span class="badge">Finanzen</span>
+          </div>
+          <h3>Financial Select Sector SPDR</h3>
+          <p class="coverage">Banken, Zahlungsdienstleister, Finanzkonglomerate</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">5.71</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>6.8 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Große US-Finanzwerte mit guter Breite; profitiert von Wachstum und Zinsumfeld, aber mit Konjunkturrisiko.</p>
+      <p class="source-note">SSGA zeigt Berkshire, JPMorgan, Visa und Mastercard unter den Top-Holdings.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLF",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="qual ishares msci usa quality factor etf quality factor us-unternehmen mit hoher qualität, profitabilität und bilanzstärke" data-category="Quality Factor" data-ticker="QUAL">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">QUAL</span>
+            <span class="badge">Quality Factor</span>
+          </div>
+          <h3>iShares MSCI USA Quality Factor ETF</h3>
+          <p class="coverage">US-Unternehmen mit hoher Qualität, Profitabilität und Bilanzstärke</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">5.20</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>7–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>6.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,15 %</strong></div>
+      </div>
+
+      <p class="why">Guter Kernbaustein für langfristige Portfolios, weil Qualität oft Verluste in schwachen Marktphasen begrenzt.</p>
+      <p class="source-note">iShares weist 121 Holdings, Beta 0,97 und TER 0,15 % aus.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:QUAL",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xli industrial select sector spdr industrials industrie, luftfahrt, logistik, automatisierung" data-category="Industrials" data-ticker="XLI">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLI</span>
+            <span class="badge">Industrials</span>
+          </div>
+          <h3>Industrial Select Sector SPDR</h3>
+          <p class="coverage">Industrie, Luftfahrt, Logistik, Automatisierung</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">5.10</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–9 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>6.3 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Profitiert von Re-Industrialisierung, Infrastruktur und Verteidigung, ist aber konjunktursensitiv.</p>
+      <p class="source-note">SSGA nennt Caterpillar, GE Aerospace, RTX und Boeing als große Positionen.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLI",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xlre real estate select sector spdr real estate reits, rechenzentren, funkmasten, logistikimmobilien" data-category="Real Estate" data-ticker="XLRE">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLRE</span>
+            <span class="badge">Real Estate</span>
+          </div>
+          <h3>Real Estate Select Sector SPDR</h3>
+          <p class="coverage">REITs, Rechenzentren, Funkmasten, Logistikimmobilien</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">4.64</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–9 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>6.1 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Real-Assets mit Dividendencharakter; empfindlich gegenüber Zinsen, aber nützlich zur Diversifikation.</p>
+      <p class="source-note">SSGA zeigt Welltower, Prologis, Equinix und American Tower unter den Top-Holdings.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLRE",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="xlv health care select sector spdr healthcare pharma, medizintechnik, gesundheitsdienstleister" data-category="Healthcare" data-ticker="XLV">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">XLV</span>
+            <span class="badge">Healthcare</span>
+          </div>
+          <h3>Health Care Select Sector SPDR</h3>
+          <p class="coverage">Pharma, Medizintechnik, Gesundheitsdienstleister</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">4.29</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–9 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>5.8 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,08 %</strong></div>
+      </div>
+
+      <p class="why">Defensiver Sektor mit langfristigem Rückenwind durch Demografie und Innovation; meist schwächer als High-Growth, aber stabiler.</p>
+      <p class="source-note">SSGA beschreibt die Abdeckung von Pharma, Equipment und Dienstleistern; Eli Lilly, J&amp;J und AbbVie stehen weit oben.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:XLV",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="iefa ishares core msci eafe etf developed ex-us entwickelte märkte ohne usa und kanada" data-category="Developed ex-US" data-ticker="IEFA">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">IEFA</span>
+            <span class="badge">Developed ex-US</span>
+          </div>
+          <h3>iShares Core MSCI EAFE ETF</h3>
+          <p class="coverage">Entwickelte Märkte ohne USA und Kanada</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">4.20</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>7–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>6.0 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,07 %</strong></div>
+      </div>
+
+      <p class="why">Gute Ergänzung für US-lastige Portfolios; breitere geografische Streuung mit moderatem Risiko.</p>
+      <p class="source-note">BlackRock beschreibt Large-, Mid- und Small-Caps aus entwickelten Märkten ex USA/Canada.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:IEFA",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="vt vanguard total world stock etf global core weltweite aktien aus industrie- und schwellenländern" data-category="Global Core" data-ticker="VT">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">VT</span>
+            <span class="badge">Global Core</span>
+          </div>
+          <h3>Vanguard Total World Stock ETF</h3>
+          <p class="coverage">Weltweite Aktien aus Industrie- und Schwellenländern</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">4.12</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>7–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>5.8 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,06 %</strong></div>
+      </div>
+
+      <p class="why">Sehr breites Ein-ETF-Portfolio für globale Streuung; weniger Upside als Sektorwetten, aber sehr robust.</p>
+      <p class="source-note">Vanguard nennt rund 8.000 Holdings in mehr als 47 Ländern.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:VT",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="voo vanguard s&amp;p 500 etf core usa breiter us-markt, large caps" data-category="Core USA" data-ticker="VOO">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">VOO</span>
+            <span class="badge">Core USA</span>
+          </div>
+          <h3>Vanguard S&amp;P 500 ETF</h3>
+          <p class="coverage">Breiter US-Markt, Large Caps</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">4.10</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>7–10 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>5.7 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,03 %</strong></div>
+      </div>
+
+      <p class="why">Der klassische Core-Baustein; sehr breit, günstig und historisch für viele Langfrist-Portfolios geeignet.</p>
+      <p class="source-note">Vanguard beschreibt den S&amp;P-500-Fokus und sehr niedrige Kosten von 0,03 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:VOO",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    <article class="card" data-name="schd schwab u.s. dividend equity etf dividend / quality us-dividendenzahler mit qualitätsfilter" data-category="Dividend / Quality" data-ticker="SCHD">
+      <div class="card-head">
+        <div>
+          <div class="ticker-row">
+            <span class="ticker">SCHD</span>
+            <span class="badge">Dividend / Quality</span>
+          </div>
+          <h3>Schwab U.S. Dividend Equity ETF</h3>
+          <p class="coverage">US-Dividendenzahler mit Qualitätsfilter</p>
+        </div>
+        <div class="scorebox">
+          <div class="score">3.85</div>
+          <div class="scorelabel">Risk/Return Score</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div><span class="label">Erwartete Rendite</span><strong>6–9 % p.a.</strong></div>
+        <div><span class="label">Risiko</span><strong>5.5 / 10</strong></div>
+        <div><span class="label">Kosten</span><strong>0,06 %</strong></div>
+      </div>
+
+      <p class="why">Sehr niedrige Kosten und starke Dividendenqualität; eher defensiv als aggressiv.</p>
+      <p class="source-note">Schwab nennt den Dow Jones U.S. Dividend 100 Index und TER 0,06 %.</p>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Verlauf / Trend</div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright">
+            <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Charts by TradingView</a>
+          </div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+          {
+            "symbol": "NYSEARCA:SCHD",
+            "width": "100%",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "de",
+            "showSymbolLogo": true,
+            "autosize": true
+          }
+          </script>
+        </div>
+      </div>
+    </article>
+    
+    </section>
+
+    <div class="footer">
+      Quelle der ETF-Grunddaten: offizielle Anbieterseiten / Factsheets. Das Design ist für GitHub Pages ausgelegt:
+      Datei als <strong>index.html</strong> speichern und in ein öffentliches Repository legen.
+      Danach GitHub Pages aktivieren.
+    </div>
+  </div>
+
+  <script>
+    const ETFs = [
+  {
+    "ticker": "SMH",
+    "name": "VanEck Semiconductor ETF",
+    "category": "Halbleiter",
+    "coverage": "Chiphersteller, Design- und Equipment-Unternehmen",
+    "expected": "12–16 % p.a.",
+    "risk": 9.5,
+    "score": 14.25
+  },
+  {
+    "ticker": "ICLN",
+    "name": "iShares Global Clean Energy ETF",
+    "category": "Clean Energy",
+    "coverage": "Erneuerbare Energien, Netze, Solar- und Clean-Tech",
+    "expected": "11–18 % p.a.",
+    "risk": 9.0,
+    "score": 12.6
+  },
+  {
+    "ticker": "CIBR",
+    "name": "First Trust Nasdaq Cybersecurity ETF",
+    "category": "Cybersecurity",
+    "coverage": "Cyberabwehr, Identität, Sicherheit, Software",
+    "expected": "10–15 % p.a.",
+    "risk": 8.5,
+    "score": 11.05
+  },
+  {
+    "ticker": "VGT",
+    "name": "Vanguard Information Technology ETF",
+    "category": "Technologie",
+    "coverage": "US-Technologie, Software, Hardware, Halbleiter",
+    "expected": "10–14 % p.a.",
+    "risk": 8.5,
+    "score": 10.63
+  },
+  {
+    "ticker": "QQQM",
+    "name": "Invesco NASDAQ 100 ETF",
+    "category": "US Growth / Mega Caps",
+    "coverage": "100 große Nicht-Finanzwerte der Nasdaq-100",
+    "expected": "9–13 % p.a.",
+    "risk": 8.0,
+    "score": 9.44
+  },
+  {
+    "ticker": "IYW",
+    "name": "iShares U.S. Technology ETF",
+    "category": "Technologie",
+    "coverage": "US-Technologie mit Russell-1000-Tech-Benchmark",
+    "expected": "8–12 % p.a.",
+    "risk": 7.8,
+    "score": 8.42
+  },
+  {
+    "ticker": "VUG",
+    "name": "Vanguard Growth ETF",
+    "category": "US Growth",
+    "coverage": "US Large-Cap Growth",
+    "expected": "8–12 % p.a.",
+    "risk": 7.5,
+    "score": 8.25
+  },
+  {
+    "ticker": "VWO",
+    "name": "Vanguard FTSE Emerging Markets ETF",
+    "category": "Emerging Markets",
+    "coverage": "Schwellenländer-Aktien",
+    "expected": "8–12 % p.a.",
+    "risk": 7.6,
+    "score": 7.6
+  },
+  {
+    "ticker": "XLC",
+    "name": "Communication Services Select Sector SPDR",
+    "category": "Communication Services",
+    "coverage": "Plattformen, Medien, Telekom",
+    "expected": "8–12 % p.a.",
+    "risk": 7.4,
+    "score": 7.25
+  },
+  {
+    "ticker": "MOAT",
+    "name": "VanEck Morningstar Wide Moat ETF",
+    "category": "Quality / Moat",
+    "coverage": "Unternehmen mit nachhaltigen Wettbewerbsvorteilen",
+    "expected": "8–11 % p.a.",
+    "risk": 7.0,
+    "score": 7.0
+  },
+  {
+    "ticker": "XLE",
+    "name": "Energy Select Sector SPDR",
+    "category": "Energie",
+    "coverage": "Öl, Gas, Midstream, Ausrüstung",
+    "expected": "6–10 % p.a.",
+    "risk": 7.2,
+    "score": 6.19
+  },
+  {
+    "ticker": "XLF",
+    "name": "Financial Select Sector SPDR",
+    "category": "Finanzen",
+    "coverage": "Banken, Zahlungsdienstleister, Finanzkonglomerate",
+    "expected": "6–10 % p.a.",
+    "risk": 6.8,
+    "score": 5.71
+  },
+  {
+    "ticker": "QUAL",
+    "name": "iShares MSCI USA Quality Factor ETF",
+    "category": "Quality Factor",
+    "coverage": "US-Unternehmen mit hoher Qualität, Profitabilität und Bilanzstärke",
+    "expected": "7–10 % p.a.",
+    "risk": 6.5,
+    "score": 5.2
+  },
+  {
+    "ticker": "XLI",
+    "name": "Industrial Select Sector SPDR",
+    "category": "Industrials",
+    "coverage": "Industrie, Luftfahrt, Logistik, Automatisierung",
+    "expected": "6–9 % p.a.",
+    "risk": 6.3,
+    "score": 5.1
+  },
+  {
+    "ticker": "XLRE",
+    "name": "Real Estate Select Sector SPDR",
+    "category": "Real Estate",
+    "coverage": "REITs, Rechenzentren, Funkmasten, Logistikimmobilien",
+    "expected": "6–9 % p.a.",
+    "risk": 6.1,
+    "score": 4.64
+  },
+  {
+    "ticker": "XLV",
+    "name": "Health Care Select Sector SPDR",
+    "category": "Healthcare",
+    "coverage": "Pharma, Medizintechnik, Gesundheitsdienstleister",
+    "expected": "6–9 % p.a.",
+    "risk": 5.8,
+    "score": 4.29
+  },
+  {
+    "ticker": "IEFA",
+    "name": "iShares Core MSCI EAFE ETF",
+    "category": "Developed ex-US",
+    "coverage": "Entwickelte Märkte ohne USA und Kanada",
+    "expected": "7–10 % p.a.",
+    "risk": 6.0,
+    "score": 4.2
+  },
+  {
+    "ticker": "VT",
+    "name": "Vanguard Total World Stock ETF",
+    "category": "Global Core",
+    "coverage": "Weltweite Aktien aus Industrie- und Schwellenländern",
+    "expected": "7–10 % p.a.",
+    "risk": 5.8,
+    "score": 4.12
+  },
+  {
+    "ticker": "VOO",
+    "name": "Vanguard S&P 500 ETF",
+    "category": "Core USA",
+    "coverage": "Breiter US-Markt, Large Caps",
+    "expected": "7–10 % p.a.",
+    "risk": 5.7,
+    "score": 4.1
+  },
+  {
+    "ticker": "SCHD",
+    "name": "Schwab U.S. Dividend Equity ETF",
+    "category": "Dividend / Quality",
+    "coverage": "US-Dividendenzahler mit Qualitätsfilter",
+    "expected": "6–9 % p.a.",
+    "risk": 5.5,
+    "score": 3.85
+  }
+];
+
+    const search = document.getElementById('search');
+    const category = document.getElementById('category');
+    const sort = document.getElementById('sort');
+    const grid = document.getElementById('grid');
+    const cards = Array.from(grid.querySelectorAll('.card'));
+
+    function applyFilters() {
+      const q = search.value.trim().toLowerCase();
+      const cat = category.value;
+      const mode = sort.value;
+
+      const visible = cards.filter(card => {
+        const text = card.dataset.name;
+        const matchQuery = !q || text.includes(q);
+        const matchCategory = cat === 'Alle' || card.dataset.category === cat;
+        const show = matchQuery && matchCategory;
+        card.style.display = show ? '' : 'none';
+        return show;
+      });
+
+      const comparator = {
+        'score-desc': (a, b) => Number(b.dataset.score) - Number(a.dataset.score),
+        'risk-desc': (a, b) => Number(b.dataset.risk) - Number(a.dataset.risk),
+        'return-desc': (a, b) => Number(b.dataset.return) - Number(a.dataset.return),
+        'ticker-asc': (a, b) => a.dataset.ticker.localeCompare(b.dataset.ticker),
+      }[mode];
+
+      visible.sort(comparator);
+
+      visible.forEach(card => grid.appendChild(card));
+    }
+
+    cards.forEach((card, index) => {
+      const etf = ETFs.find(x => x.ticker === card.dataset.ticker);
+      if (etf) {
+        card.dataset.score = etf.score;
+        card.dataset.risk = etf.risk;
+        card.dataset.return = Number(String(etf.expected).match(/\d+/)?.[0] || 0);
+      }
+    });
+
+    search.addEventListener('input', applyFilters);
+    category.addEventListener('change', applyFilters);
+    sort.addEventListener('change', applyFilters);
+    applyFilters();
+
+    const ctx = document.getElementById('scatterChart');
+    new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'ETF',
+          data: ETFs.map(e => ({
+            x: e.risk,
+            y: e.score,
+            label: e.ticker,
+            title: e.name
+          })),
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const p = context.raw;
+                return `${p.label} • Risiko ${p.x.toFixed(1)} / 10 • Score ${p.y.toFixed(2)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Risiko' },
+            min: 0,
+            max: 10,
+            grid: { color: 'rgba(255,255,255,.06)' },
+            ticks: { color: '#aab5d6' },
+          },
+          y: {
+            title: { display: true, text: 'Risk/Return Score' },
+            grid: { color: 'rgba(255,255,255,.06)' },
+            ticks: { color: '#aab5d6' },
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
